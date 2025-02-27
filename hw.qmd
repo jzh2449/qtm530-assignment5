@@ -1,0 +1,215 @@
+---
+title: "Exploratory Data Analysis Report"
+author: "Jichun"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
+  revealjs::revealjs_presentation:
+    theme: white
+    transition: fade
+
+bibliography: references.bib
+---
+
+### Tasks
+
+1.  Please initialise a new `.qmd` file with an appropriate `YAML` header. Include metadata such as `title`, `author`, `date`, and specify the output format as `HTML` and `PDF`.
+
+2.  Load the dataset using your preferred programming language (R or Python).
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+```{r}
+# Load data
+data <- read.csv("wdi.csv")
+```
+
+3.  Conduct exploratory data analysis on at least three indicators of your choice. Summarise your findings in markdown sections. Show your code and results.
+
+```{r}
+# View structure
+str(data)
+```
+
+#### Inflation Rate Analysis
+
+```{r}
+data %>% 
+  summarise(Mean = mean(inflation_rate, na.rm = TRUE), 
+            Median = median(inflation_rate, na.rm = TRUE), 
+            SD = sd(inflation_rate, na.rm = TRUE)) %>%
+  kable() %>%
+  kable_styling()
+```
+
+The inflation rate exhibits a right-skewed distribution, with a mean of approximately 12.49, a median of about 7.97, and a standard deviation of around 19.68, indicating that the inflation rate distribution in this sample is relatively dispersed and shows significant variability.
+
+#### GDP Growth Rate Distribution
+
+```{r}
+data %>% 
+  summarise(Mean = mean(gdp_growth_rate, na.rm = TRUE), 
+            Median = median(gdp_growth_rate, na.rm = TRUE), 
+            SD = sd(gdp_growth_rate, na.rm = TRUE)) %>%
+  kable() %>%
+  kable_styling()
+```
+
+```{r}
+# Visualization
+library(ggplot2)
+ggplot(data, aes(x = gdp_growth_rate)) + 
+  geom_histogram(binwidth = 1, fill = "darkgreen", color = "white") +
+  theme_minimal() +
+  labs(title = "GDP Growth Rate Distribution", x = "GDP Growth Rate (%)", y = "Count")
+```
+
+The GDP growth rate appears to be nearly symmetrical or slightly right-skewed, given that the mean (approximately 4.37) is slightly higher than the median (about 4.20). The standard deviation of around 6.63.
+
+#### Relationship between GDP per Capita and Life Expectancy
+
+```{r}
+lm_log <- lm(life_expectancy ~ log(gdp_per_capita), data = data)
+summary(lm_log)
+
+```
+
+```{r}
+ggplot(data, aes(x = gdp_per_capita, y = life_expectancy)) + 
+  geom_point(color = "darkred", alpha = 0.3) +
+  theme_minimal() +
+  labs(title = "GDP per Capita vs Life Expectancy", x = "GDP per Capita (USD)", y = "Life Expectancy (years)")
+```
+
+Higher GDP per capita is strongly associated with longer life expectancy. The log-linear model indicates that a one-unit increase in the natural log of GDP per capita corresponds to an increase of about 4.46 years in life expectancy, demonstrating diminishing returns as income rises.
+
+## Summary Table
+
+```{r}
+data %>% 
+  summarise(
+    Mean_GDP = mean(gdp_per_capita, na.rm = TRUE),
+    Median_GDP = median(gdp_per_capita, na.rm = TRUE),
+    Mean_LifeExp = mean(life_expectancy, na.rm = TRUE),
+    Median_LifeExp = median(life_expectancy, na.rm = TRUE)
+  ) %>%
+  kable() %>%
+  kable_styling()
+```
+
+4.  Create at least two different types of plots (e.g., bar chart, scatter plot) to represent your analysis. Use Quarto code chunks to embed these visualisations. Add a title and axis labels to each plot. Use Quarto to include a caption and a reference to the source of the data. Hide your code in the final document.
+
+```{r}
+selected <- data %>% filter(!is.na(unemployment_rate)) %>% top_n(10, wt = unemployment_rate)
+ggplot(selected, aes(x = reorder(country, unemployment_rate), y = unemployment_rate)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  labs(title = "Top 10 Countries by Unemployment Rate",
+       x = "Country",
+       y = "Unemployment Rate") +
+  coord_flip() +
+  theme_minimal()
+
+```
+
+```{r}
+library(ggplot2)
+ggplot(data, aes(x = "", y = gdp_growth_rate)) +
+  geom_violin(fill = "lightblue", color = "black", alpha = 0.7) +
+  geom_boxplot(width = 0.1, color = "black", alpha = 0.5) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of GDP Growth Rate",
+    x = "",
+    y = "GDP Growth Rate (%)",
+    caption = "Figure @fig:violin-plot: Violin plot showing the distribution of GDP growth rate."
+  )
+
+```
+
+6.  Construct a table that highlights some key statistics from your analysis. Ensure the table is well-formatted and included in the report.
+
+```{r}
+library(dplyr)
+library(gt)
+
+# Calculate key statistics from the dataset using dplyr
+stats <- data %>% 
+  summarise(
+    avg_gdp_per_capita = mean(gdp_per_capita, na.rm = TRUE),
+    median_gdp_per_capita = median(gdp_per_capita, na.rm = TRUE),
+    avg_life_expectancy = mean(life_expectancy, na.rm = TRUE),
+    median_life_expectancy = median(life_expectancy, na.rm = TRUE),
+    avg_unemployment_rate = mean(unemployment_rate, na.rm = TRUE),
+    median_unemployment_rate = median(unemployment_rate, na.rm = TRUE)
+  )
+
+# Create a nicely formatted table using gt
+stats_table <- stats %>%
+  gt() %>% 
+  # Add a title and subtitle to the table
+  tab_header(
+    title = "Key Statistics from the Dataset",
+    subtitle = "Summary of GDP per Capita, Life Expectancy, and Unemployment Rate"
+  ) %>%
+  # Format numeric columns to show 2 decimal places
+  fmt_number(
+    columns = vars(avg_gdp_per_capita, median_gdp_per_capita, 
+                   avg_life_expectancy, median_life_expectancy, 
+                   avg_unemployment_rate, median_unemployment_rate),
+    decimals = 2
+  ) %>%
+  # Rename columns with more descriptive labels
+  cols_label(
+    avg_gdp_per_capita = "Average GDP per Capita",
+    median_gdp_per_capita = "Median GDP per Capita",
+    avg_life_expectancy = "Average Life Expectancy",
+    median_life_expectancy = "Median Life Expectancy",
+    avg_unemployment_rate = "Average Unemployment Rate",
+    median_unemployment_rate = "Median Unemployment Rate"
+  )
+
+# Render the table
+stats_table
+
+```
+
+6.  Include cross-references to your figures and tables within the text. Demonstrate proper labeling and referencing techniques.
+
+```{r}
+library(knitr)
+library(kableExtra)
+
+data %>% 
+  summarise(Mean = mean(gdp_growth_rate, na.rm = TRUE), 
+            Median = median(gdp_growth_rate, na.rm = TRUE), 
+            SD = sd(gdp_growth_rate, na.rm = TRUE)) %>%
+  kable(caption = "Table @tab:summary-stats: Summary statistics for GDP growth rate") %>%
+  kable_styling()
+
+```
+
+The key summary statistics can be found in Table @tab:summary-stats.
+
+7.  Add a bibliography using BibTeX (`.bib`). Cite at least two sources related to your analysis.
+
+Our analysis uses data obtained from the World Development Indicators provided by the World Bank (@WorldBankWDI). Using methods from @WorldBankWDI_Method provided by the World Bank.
+
+8.  Create a new `.qmd` file configured for `revealjs` output. Include a title slide, a few content slides, and a concluding slide.
+
+9.  Incorporate your analysis and visualisations from the report into the presentation.
+
+10. Customise the presentation theme and incorporate at least one transition effect between slides.
+
+11. Render your report and presentation to HTML, PDF, and Revealjs (HTML) formats.
+
+12. Use Git to manage your project and create a repository on GitHub. Submit the link to your repository on Canvas.
+
+13. Set up GitHub Pages (preferably) or use GitHack to host your HTML report and presentation. Add the links of the published pages to your `README.md` file. Do not forget to include the PDF report and the `.qmd` files in your repository.
